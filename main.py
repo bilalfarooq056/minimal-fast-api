@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException,status
 from pydantic import BaseModel
+from typing import Optional
 app = FastAPI()
 
 # set up localhost 3000 with uvicorn
@@ -34,9 +35,9 @@ def get_health():
 #======================{ stage 2 Read: list and single task }=======================
 
 # point 1:  -- create a tasks 3 list 
-tasks = [{"id":0, "title":"this is a FIRST normal task in the backend","done":False},
-        {"id":1, "title":"this is a SECOND normal task in the backend","done":True},
-        {"id":2, "title":"this is a THIRD normal task in the backend","done":False}
+tasks = [{"id":0, "title":"Your FIRST Order Is Here","done":False},
+        {"id":1, "title":"Your SECOND Order Is Here","done":True},
+        {"id":2, "title":"Your THIRD Order Is Here","done":False}
         ]
 
 # point 2: get all tasks 
@@ -78,5 +79,48 @@ def get_tasks():
     return tasks
 
 #======================{ stage 4 UPDATE and DELETE tasks }=======================
+# point 1 
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    done:  Optional[bool] = None
+
+
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, update: TaskUpdate):
+
+    # find the task
+    task = next((t for t in tasks if t["id"]== task_id), None)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # validate: at least one field must be provided
+    if update.title is None and update.done is None:
+        raise HTTPException(status_code=400, detail="Provideat least 'title' or 'done' to update")
+
+    #validate: if title is given, it can't be empty
+    if update.title is not None and not update.title.strip():
+        raise HTTPException(status_code=400, detail="title cannot be empty")
+    
+    # apply only field that were sent
+    if update.title is not None:
+        task["title"] = update.title
+    if update.done is not None:
+        task["done"] = update.done
+
+    return task 
+
+
+
+
+# point 2
+@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int):
+    if task_id not in [task["id"] for task in tasks]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "404", "message": f"Task_ID {task_id} not found"}
+        )
+    del tasks[task_id]
+    return {"status": "success", "message": f"Task {task_id} deleted successfully"}
 
     
