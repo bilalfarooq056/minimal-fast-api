@@ -78,25 +78,5 @@ def get_tasks():
     return tasks
 
 #======================{ stage 4 UPDATE and DELETE tasks }=======================
-# @app.put("/tasks/{task_id}")
-# def update_task(task_id: int, updated_task: TaskCreate):
-#     if task_id not in [task["id"] for task in tasks]:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail={"status": "404", "message": f"Task_ID {task_id} not found"}
-#         )
-#     task = tasks[task_id]
-#     task["title"] = updated_task.title
-#     task["done"] = updated_task.done
-#     return task
-# @app.delete("/tasks/{task_id}")
-# def delete_task(task_id: int):
-#     if task_id not in [task["id"] for task in tasks]:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail={"status": "404", "message": f"Task_ID {task_id} not found"}
-#         )
-#     del tasks[task_id]
-#     return {"status": "success", "message": f"Task {task_id} deleted successfully"}
 
     
