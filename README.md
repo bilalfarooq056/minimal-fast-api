@@ -205,3 +205,79 @@ smallest-backend/
 | 4 | `PUT /tasks/{id}` and `DELETE /tasks/{id}` — full CRUD complete |
 | 5 | Swagger UI docs at `/docs` |
 | 6 | Published to GitHub with documentation |
+
+## AI vs Me
+
+**My prompt:** This is a V2 or prompt: Build a minimal backend API using Python and FastAPI. It should run on
+localhost, port 3000, using Uvicorn.
+
+Storage:
+Use a single in-memory Python list (no database) to store tasks. Pre-fill
+it with 3 example tasks, each with fields: id (integer), title (string),
+done (boolean).
+
+Endpoints:
+
+1. GET / 
+   Returns JSON describing the API:
+   { "name": "Task API", "version": "1.0", "endpoints": ["/tasks"] }
+
+2. GET /health
+   Returns { "status": "ok" }
+
+3. GET /tasks
+   Returns the full list of tasks.
+
+4. GET /tasks/{id}
+   Returns a single task matching the given id, searched by the task's
+   "id" field (not by list index/position).
+   If no task has that id, return HTTP 404 with body:
+   { "error": "Task {id} not found" }
+
+5. POST /tasks
+   Accepts JSON body: { "title": "..." }
+   Creates a new task with the next available id and done set to false.
+   Returns the created task with HTTP 201.
+   If "title" is missing or empty/whitespace-only, return HTTP 400 with:
+   { "error": "title is required and cannot be empty" }
+
+6. PUT /tasks/{id}
+   Accepts a JSON body with optional "title" and/or "done" fields, and
+   updates only the fields provided. Returns the updated task with HTTP 200.
+   If the id doesn't exist, return HTTP 404 with:
+   { "error": "Task {id} not found" }
+   If the body is empty or contains neither field, return HTTP 400 with:
+   { "error": "Provide at least 'title' or 'done' to update" }
+
+7. DELETE /tasks/{id}
+   Deletes the task matching the given id. Returns HTTP 204 with an empty
+   body. If the id doesn't exist, return HTTP 404 with:
+   { "error": "Task {id} not found" }
+
+Requirements:
+- All error responses must use the exact shape: { "error": "message" } —
+  do not use FastAPI's default { "detail": "..." } format, even for
+  built-in validation errors.
+- Use Pydantic models for request validation on POST and PUT.
+- Enable Swagger UI at /docs (FastAPI does this automatically — just
+  make sure title/version metadata is set on the FastAPI app instance).
+- All code should live in a single main.py file.
+- Include a requirements.txt with the necessary dependencies.
+- Do not add any authentication, database, or external dependencies
+  beyond FastAPI, Uvicorn, and Pydantic.
+
+**Differences found:**
+
+1. **Bug fix (silent):** My `GET /tasks/{id}` used `tasks[task_id]` as a list index instead of searching by the actual `id` field — this breaks after any deletion. The AI used a `find_task()` helper that searches correctly. It didn't flag that it fixed a bug versus just writing it differently.
+
+2. **Error consistency:** My error responses were inconsistent (`{"error": ...}` in some places, FastAPI's default `{"detail": ...}` in others). The AI added global exception handlers to normalize every error into `{"error": "..."}`, including for validation errors I hadn't explicitly styled.
+
+3. **Port mismatch:** The AI defaulted to port 8000 in its comments/instructions, but I specified port 3000 in my prompt (or: I forgot to specify a port, and the AI silently picked 8000, FastAPI's more common convention).
+
+4. **Validation style:** I validated manually inside each route function. The AI used Pydantic `@field_validator`, which runs before the route even executes — more idiomatic, but a stylistic choice I never specified.
+
+**Rematch note:** After specifying the exact error JSON shape, banning
+index-based lookups, and fixing the port number, the v2 AI output matched
+My hand-built version's behaviour almost exactly — the main remainingThe 
+difference was its use of Pydantic field_validator instead of manual
+checks inside the route functions.
