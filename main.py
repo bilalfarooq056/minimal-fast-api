@@ -112,7 +112,8 @@ def update_task(task_id: int, update: TaskUpdate):
 
 
 
-# point 2
+# point 2 
+# -----> removes the task. Return status 204 ("No Content" — success, nothing to say) with an empty body.  
 @app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: int):
     if task_id not in [task["id"] for task in tasks]:
@@ -121,6 +122,6 @@ def delete_task(task_id: int):
             detail={"status": "404", "message": f"Task_ID {task_id} not found"}
         )
     del tasks[task_id]
-    return {"status": "success", "message": f"Task {task_id} deleted successfully"}
+    return {"status": "success", "message": f"Task {task_id} deleted successfully - nothing to say"}
 
     
