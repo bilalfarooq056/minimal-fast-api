@@ -1,8 +1,13 @@
 from fastapi import FastAPI, HTTPException,status
 from pydantic import BaseModel
 from typing import Optional
+from database import init_db, get_connection
 app = FastAPI()
 
+
+# +++++++++++++++++++++++++++
+#         A1 Week_2             
+# +++++++++++++++++++++++++++
 # set up localhost 3000 with uvicorn
 # uvicorn main:app --reload http://localhost:3000
 # run uvicorn in terminal
@@ -68,7 +73,7 @@ def create_task(task: TaskCreate):
             detail={"status": "400", "message": "Title is required and cannot be empty"}
         )
 
-    next_id = int(max((task["id"] for task in tasks), default=-1)) + 1
+    next_id = int(max((task["id"] for task in tasks), default=-1)) + 1 # this works even if the center value is missed
     new_task = {"id": next_id, "title": task.title, "done": False}
     tasks.append(new_task)
 
@@ -124,4 +129,42 @@ def delete_task(task_id: int):
     del tasks[task_id]
     return {"status": "success", "message": f"Task {task_id} deleted successfully - nothing to say"}
 
-    
+'''
+# Extras: 
+#  curl -i http://localhost:3000/tasks?search=milk
+#  curl -i http://localhost:3000/tasks?done=true
+
+> out:1
+HTTP/1.1 200 OK
+date: Thu, 16 Jul 2026 17:39:39 GMT
+server: uvicorn
+content-length: 172
+content-type: application/json
+
+[{"id":0,"title":"Your FIRST Order Is Here","done":false},{"id":1,"title":"Your SECOND Order Is Here","done":true},{"id":2,"title":"Your THIRD Order Is Here","done":false}](venv)
+
+> out:2
+#  HTTP/1.1 200 OK
+# date: Thu, 16 Jul 2026 17:37:15 GMT
+# server: uvicorn
+# content-length: 172
+# content-type: application/json
+
+# [{"id":0,"title":"Your FIRST Order Is Here","done":false},{"id":1,"title":"Your SECOND Order Is Here","done":true},{"id":2,"title":"Your THIRD Order Is Here","done":false}](venv)
+'''
+
+
+
+
+
+# =============================================================================================================
+# +++++++++++++++++++++++++++
+#         A2 Week_2             
+# +++++++++++++++++++++++++++
+
+@app.on_event("startup")
+def startup():
+    init_db()
+
+
+
