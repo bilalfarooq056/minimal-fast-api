@@ -81,16 +81,21 @@ class TaskCreate(BaseModel):
 def create_task(task: TaskCreate):
     # Next free id = highest existing id + 1 (works even if tasks are deleted later)
     if not task.title or not task.title.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"status": "400", "message": "Title is required and cannot be empty"}
-        )
+        raise HTTPException(status_code=400, detail="Title is required" )
 
-    next_id = int(max((task["id"] for task in tasks), default=-1)) + 1 # this works even if the center value is missed
-    new_task = {"id": next_id, "title": task.title, "done": False}
-    tasks.append(new_task)
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (task.title, 0)
+    )
+    conn.commit()
+    
+    new_id = cursor.lastrowid
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (new_id,)).fetchone()
+    conn.close()
 
-    return new_task
+    return dict(row)
 
 @app.get("/tasks")
 def get_tasks():
