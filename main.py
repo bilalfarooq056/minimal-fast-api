@@ -13,6 +13,11 @@ app = FastAPI()
 # run uvicorn in terminal
 # basic end point from stage
 
+@app.on_event("startup")
+def startup():
+    init_db()
+
+
       
 # ====================={ stage 0 run simple hello server }=========================
 # ---- Existing endpoints ----
@@ -48,15 +53,23 @@ tasks = [{"id":0, "title":"Your FIRST Order Is Here","done":False},
 # point 2: get all tasks 
 @app.get("/tasks")
 def get_tasks():
-    return tasks  
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM tasks").fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]  
 
 # point 3 & 4 combined: get single task and return error if not found
 @app.get("/tasks/{task_id}")
 def get_single_task(task_id: int):
-    if task_id not in [task["id"] for task in tasks]:
-        return {"status":"404","message":f"Task_ID {task_id} not found"}
-        # raise HTTPException(status_code=404, detail="Task_ID not found") # 2nd way
-    return tasks[task_id]
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    conn.close()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail = "Task not found")
+
+    return dict(row)
 
 #======================{ stage 3 POST: add new task }=======================
 
@@ -162,9 +175,6 @@ content-type: application/json
 #         A2 Week_2             
 # +++++++++++++++++++++++++++
 
-@app.on_event("startup")
-def startup():
-    init_db()
 
 
 
