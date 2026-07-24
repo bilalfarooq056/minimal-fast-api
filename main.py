@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException,status
+from fastapi import FastAPI, HTTPException,status,Query
 from pydantic import BaseModel
 from typing import Optional
 from database import init_db, get_connection
@@ -15,6 +15,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+
 # +++++++++++++++++++++++++++
 #         A1 Week_2             
 # +++++++++++++++++++++++++++
@@ -26,11 +27,23 @@ app = FastAPI(lifespan=lifespan)
 
 
       
-# ====================={ stage 0 run simple hello server }=========================
-# ---- Existing endpoints ----
-@app.get("/status")
-def get_status():
-    return {"status": "online", "message": "Server is running!"}
+# ====================={ stage 0 Create your database }=========================
+# ---- Exrta And optional Task----
+@app.get("/stats")
+def get_stats():
+    conn = get_connection()
+
+    total = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    done_count = conn.execute("SELECT COUNT(*) FROM tasks WHERE done = 1").fetchone()[0]
+    pending_count = conn.execute("SELECT COUNT(*) FROM tasks WHERE done = 0").fetchone()[0]
+
+    conn.close()
+
+    return {
+        "total": total,
+        "done": done_count,
+        "pending": pending_count
+    }
 
 @app.get("/data")
 def get_data():
@@ -49,7 +62,7 @@ def root():
 def get_health():
     return {"status":"OK"}   
 
-#======================{ stage 2 Read: list and single task }=======================
+#======================{ stage 2 Read from the database  }=======================
 
 # point 1:  -- create a tasks 3 list 
 tasks = [{"id":0, "title":"Your FIRST Order Is Here","done":False},
@@ -78,7 +91,7 @@ def get_single_task(task_id: int):
 
     return dict(row)
 
-#======================{ stage 3 POST: add new task }=======================
+#======================{ stage 3 - Create new tasks }=======================
 
 # ---- Input model: only "title" is expected from the client ----
 class TaskCreate(BaseModel):
@@ -108,7 +121,7 @@ def create_task(task: TaskCreate):
 def get_tasks():
     return tasks
 
-#======================{ stage 4 UPDATE and DELETE tasks }=======================
+#======================{ stage 3 & 4 Update and delete & Learn your first SQL }=======================
 # point 1 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -133,7 +146,7 @@ def update_task(task_id: int, task: TaskUpdate):
         raise HTTPException(status_code=404, detail="Task not found")
 
     cursor.execute(
-        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, done = ?, updated_at = datetime('now') WHERE id = ?",
         (task.title, int(task.done), task_id)
     )
     conn.commit()
@@ -145,7 +158,6 @@ def update_task(task_id: int, task: TaskUpdate):
 
 
 # point 2 
-# -----> removes the task. Return status 204 ("No Content" — success, nothing to say) with an empty body.  
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
     conn = get_connection()
@@ -162,39 +174,34 @@ def delete_task(task_id: int):
 
     return None
 
-'''
-# Extras: 
-#  curl -i http://localhost:3000/tasks?search=milk
-#  curl -i http://localhost:3000/tasks?done=true
 
-> out:1
-HTTP/1.1 200 OK
-date: Thu, 16 Jul 2026 17:39:39 GMT
-server: uvicorn
-content-length: 172
-content-type: application/json
+# -----> Publish your database project
+# ==================== Optional extras=====================
 
-[{"id":0,"title":"Your FIRST Order Is Here","done":false},{"id":1,"title":"Your SECOND Order Is Here","done":true},{"id":2,"title":"Your THIRD Order Is Here","done":false}](venv)
+@app.get("/tasks")
+def get_tasks(
+    search: Optional[str] = Query(None),
+    done: Optional[bool] = Query(None),
+    sort: Optional[str] = Query(None)
+):
+    conn = get_connection()
 
-> out:2
-#  HTTP/1.1 200 OK
-# date: Thu, 16 Jul 2026 17:37:15 GMT
-# server: uvicorn
-# content-length: 172
-# content-type: application/json
+    query = "SELECT * FROM tasks WHERE 1=1"
+    params = []
 
-# [{"id":0,"title":"Your FIRST Order Is Here","done":false},{"id":1,"title":"Your SECOND Order Is Here","done":true},{"id":2,"title":"Your THIRD Order Is Here","done":false}](venv)
-'''
+    if search:
+        query += " AND title LIKE ?"
+        params.append(f"%{search}%")
 
+    if done is not None:
+        query += " AND done = ?"
+        params.append(int(done))
 
+    if sort == "title":
+        query += " ORDER BY title ASC"
 
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
 
-
-# =============================================================================================================
-# +++++++++++++++++++++++++++
-#         A2 Week_2             
-# +++++++++++++++++++++++++++
-
-
-
+    return [dict(row) for row in rows]
 
