@@ -2,7 +2,17 @@ from fastapi import FastAPI, HTTPException,status
 from pydantic import BaseModel
 from typing import Optional
 from database import init_db, get_connection
+from contextlib import asynccontextmanager
 app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # code here runs on startup
+    init_db()
+    yield
+    # code here would run on shutdown (nothing needed for us)
+
+app = FastAPI(lifespan=lifespan)
 
 
 # +++++++++++++++++++++++++++
@@ -13,9 +23,6 @@ app = FastAPI()
 # run uvicorn in terminal
 # basic end point from stage
 
-@app.on_event("startup")
-def startup():
-    init_db()
 
 
       
@@ -90,7 +97,7 @@ def create_task(task: TaskCreate):
         (task.title, 0)
     )
     conn.commit()
-    
+
     new_id = cursor.lastrowid
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (new_id,)).fetchone()
     conn.close()
@@ -108,44 +115,52 @@ class TaskUpdate(BaseModel):
     done:  Optional[bool] = None
 
 
-@app.put("/tasks/{task_id}")
-def update_task(task_id: int, update: TaskUpdate):
+class TaskUpdate(BaseModel):
+    title: str
+    done: bool
 
-    # find the task
-    task = next((t for t in tasks if t["id"]== task_id), None)
-    if task is None:
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, task: TaskUpdate):
+    if not task.title or not task.title.strip():
+        raise HTTPException(status_code=400, detail="Title is required")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    existing = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if existing is None:
+        conn.close()
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # validate: at least one field must be provided
-    if update.title is None and update.done is None:
-        raise HTTPException(status_code=400, detail="Provideat least 'title' or 'done' to update")
+    cursor.execute(
+        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        (task.title, int(task.done), task_id)
+    )
+    conn.commit()
 
-    #validate: if title is given, it can't be empty
-    if update.title is not None and not update.title.strip():
-        raise HTTPException(status_code=400, detail="title cannot be empty")
-    
-    # apply only field that were sent
-    if update.title is not None:
-        task["title"] = update.title
-    if update.done is not None:
-        task["done"] = update.done
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    conn.close()
 
-    return task 
-
-
+    return dict(row)
 
 
 # point 2 
 # -----> removes the task. Return status 204 ("No Content" — success, nothing to say) with an empty body.  
-@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
-    if task_id not in [task["id"] for task in tasks]:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"status": "404", "message": f"Task_ID {task_id} not found"}
-        )
-    del tasks[task_id]
-    return {"status": "success", "message": f"Task {task_id} deleted successfully - nothing to say"}
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    existing = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
+
+    return None
 
 '''
 # Extras: 
