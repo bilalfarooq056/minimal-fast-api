@@ -65,8 +65,10 @@ SELECT * FROM tasks WHERE done = 1;
 ```
 This returns all tasks currently marked as completed. This query — and others like `UPDATE tasks SET done = 1;` and `DELETE FROM tasks WHERE done = 1;` — were run manually in DB Browser for SQLite to confirm the API reflects direct database changes with no code involved.
 
-### Screenshot
-![Database view in DB Browser](./screenshot.png)
+### Screenshots
+![Database view in DB Browser](./Database_view_in_DB_Browser.png)
+![New Query](./new_query.png)
+
 
 ## Example Requests
 
